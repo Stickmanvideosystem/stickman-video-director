@@ -1,0 +1,24 @@
+{
+  "name": "stickman-video-director",
+  "version": "2.0.0",
+  "description": "Autonomous AI Stickman Sakuga Animation & Cloud Video Director",
+  "main": "scripts/direct_scene.js",
+  "scripts": {
+    "direct": "node scripts/direct_scene.js",
+    "open": "node scripts/direct_scene.js --open",
+    "record": "node scripts/direct_scene.js --record --open",
+    "cloud:link": "node -e \"console.log('https://stickmanvideosystem.github.io/stickman-video-director/')\""
+  },
+  "keywords": [
+    "stickman",
+    "animation",
+    "sakuga",
+    "ai-director",
+    "canvas",
+    "webaudio",
+    "remotion",
+    "blender"
+  ],
+  "author": "Stickmanvideosystem",
+  "license": "MIT"
+}

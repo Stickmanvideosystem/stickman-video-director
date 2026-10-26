@@ -236,6 +236,22 @@
       background: #ff2a73;
       box-shadow: 0 0 25px rgba(255, 0, 85, 0.6);
     }
+    .chip-btn {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .chip-btn:hover {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: #00f0ff;
+      color: #00f0ff;
+    }
     button.recording {
       animation: pulse 1s infinite alternate;
     }
@@ -271,8 +287,8 @@
     <!-- 💬 Prompt Command Bar & Multi-Scene Presets -->
     <div class="command-bar-wrapper">
       <span style="font-size: 15px;">💬</span>
-      <input type="text" id="commandInput" class="command-input" placeholder="Type a prompt (e.g., 'Full 3-scene story', 'Katana clash', 'Energy blast', '9:16 Shorts')...">
-      <button id="commandSubmit" class="primary" style="padding: 5px 12px;">Run</button>
+      <input type="text" id="commandInput" class="command-input" placeholder="Type a prompt (e.g. 'Cyan deflects Crimson laser with katana in 9:16 Shorts', 'Teleport counter', etc.)...">
+      <button id="commandSubmit" class="primary" style="padding: 5px 12px;">Run Prompt</button>
       <div style="width: 1px; height: 18px; background: rgba(255,255,255,0.15); margin: 0 4px;"></div>
       
       <!-- Multi-Scene Story Mode -->
@@ -283,6 +299,15 @@
       <button class="quick-preset-btn" data-choreography="energy">⚡ Energy Blast</button>
       <button class="quick-preset-btn" data-choreography="teleport">🌀 Teleport Clash</button>
       <button class="quick-preset-btn" data-choreography="martial">🥋 Martial Arts</button>
+    </div>
+
+    <!-- Quick Prompt Ideas -->
+    <div style="display: flex; gap: 8px; margin-top: 6px; font-size: 11px; color: #94a3b8; align-items: center; flex-wrap: wrap;">
+      <span style="font-weight: 700; color: #64748b; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px;">Quick Prompts:</span>
+      <button class="chip-btn" onclick="applyQuickPrompt('Cyan deflects Crimson laser with katana in 9:16 Shorts')">⚡ Laser vs Katana (9:16 Shorts)</button>
+      <button class="chip-btn" onclick="applyQuickPrompt('Cyan teleports behind Crimson with slow-mo dragon kick')">🌀 Teleport Behind & Kick</button>
+      <button class="chip-btn" onclick="applyQuickPrompt('Full 3-scene anime fight standoff, clash, and aerial slam')">🎬 Full 3-Scene Anime Battle</button>
+      <button class="chip-btn" onclick="applyQuickPrompt('Twin plasma swords clash with intense spark bursts in 9:16')">⚔️ Twin Blades (9:16)</button>
     </div>
 
     <div class="canvas-wrapper ratio-16-9" id="canvasWrapper">
@@ -388,19 +413,65 @@
     });
 
     // Preset Switching
+    let customTimeline = null;
+
+    function buildCustomTimeline(promptText) {
+      const q = promptText.toLowerCase();
+      const isVert = q.includes('9:16') || q.includes('vertical') || q.includes('short') || q.includes('tiktok') || q.includes('reel');
+      const hasKatana = q.includes('katana') || q.includes('sword') || q.includes('blade') || q.includes('slash');
+      const hasBeam = q.includes('laser') || q.includes('beam') || q.includes('energy') || q.includes('blast') || q.includes('cannon');
+      const hasTeleport = q.includes('teleport') || q.includes('flash') || q.includes('behind') || q.includes('portal') || q.includes('shunpo');
+      const hasKick = q.includes('kick') || q.includes('roundhouse') || q.includes('slam') || q.includes('martial') || q.includes('punch');
+
+      let cyanQuote = 'You shouldn\'t have come back, Crimson.';
+      let redQuote = 'This arena is your grave.';
+      let cyanFinishQuote = 'This ends now.';
+      const quotes = promptText.match(/"([^"]+)"|'([^']+)'/g);
+      if (quotes && quotes.length >= 1) {
+        cyanQuote = quotes[0].replace(/['"]/g, '');
+        if (quotes.length >= 2) {
+          redQuote = quotes[1].replace(/['"]/g, '');
+        }
+      }
+
+      const generatedTitle = (hasKatana && hasBeam) ? 'DUEL: PLASMA BLADE VS HYPER BEAM' :
+                             hasTeleport ? 'SHADOW FLASH-STEP CONFRONTATION' :
+                             hasBeam ? 'HYPER ENERGY SURGE APOCALYPSE' :
+                             hasKatana ? 'WAY OF THE TWIN PLASMA KATANAS' : 'SAKUGA MARTIAL CONFLICT';
+
+      return {
+        prompt: promptText,
+        isVertical: isVert,
+        hasKatana: hasKatana || (!hasBeam && !hasTeleport && !hasKick),
+        hasBeam: hasBeam || (!hasKatana && !hasTeleport && !hasKick),
+        hasTeleport,
+        hasKick: hasKick || (!hasBeam && !hasKatana),
+        cyanQuote,
+        redQuote,
+        cyanFinishQuote,
+        title: generatedTitle
+      };
+    }
+
     function setChoreography(type) {
       activeChoreography = type;
       presetBtns.forEach(btn => {
         btn.classList.toggle('active', btn.dataset.choreography === type);
       });
-      totalFrames = (type === 'story') ? 900 : 600;
+      totalFrames = (type === 'story' || type === 'custom') ? 900 : 600;
       timeline.max = totalFrames;
       currentFrame = 0;
       timeline.value = 0;
+      if (type === 'custom' && customTimeline && customTimeline.isVertical !== undefined) {
+        setAspectRatio(customTimeline.isVertical);
+      }
     }
 
     presetBtns.forEach(btn => {
-      btn.addEventListener('click', () => setChoreography(btn.dataset.choreography));
+      btn.addEventListener('click', () => {
+        customTimeline = null;
+        setChoreography(btn.dataset.choreography);
+      });
     });
 
     commandSubmit.addEventListener('click', handleCommand);
@@ -409,27 +480,64 @@
     });
 
     function handleCommand() {
-      const q = commandInput.value.toLowerCase().trim();
+      const q = commandInput.value.trim();
       if (!q) return;
-      if (q.includes('9:16') || q.includes('vertical') || q.includes('short') || q.includes('tiktok') || q.includes('reel')) {
+
+      const lower = q.toLowerCase();
+      if (lower.includes('9:16') || lower.includes('vertical') || lower.includes('short') || lower.includes('tiktok') || lower.includes('reel')) {
         setAspectRatio(true);
-      } else if (q.includes('16:9') || q.includes('landscape') || q.includes('horizontal') || q.includes('wide')) {
+      } else if (lower.includes('16:9') || lower.includes('landscape') || lower.includes('wide')) {
         setAspectRatio(false);
       }
       
-      if (q.includes('story') || q.includes('all') || q.includes('scene') || q.includes('full')) {
+      if (lower === 'story' || lower === 'all' || lower === 'full') {
+        customTimeline = null;
         setChoreography('story');
-      } else if (q.includes('energy') || q.includes('beam') || q.includes('blast') || q.includes('laser')) {
+      } else if (lower === 'energy' || lower === 'laser') {
+        customTimeline = null;
         setChoreography('energy');
-      } else if (q.includes('teleport') || q.includes('flash') || q.includes('portal') || q.includes('shunpo')) {
+      } else if (lower === 'teleport' || lower === 'flash') {
+        customTimeline = null;
         setChoreography('teleport');
-      } else if (q.includes('martial') || q.includes('punch') || q.includes('kick') || q.includes('kung fu')) {
+      } else if (lower === 'martial' || lower === 'kick') {
+        customTimeline = null;
         setChoreography('martial');
-      } else if (q.includes('katana') || q.includes('sword') || q.includes('blade')) {
+      } else if (lower === 'katana' || lower === 'sword') {
+        customTimeline = null;
         setChoreography('katana');
+      } else {
+        // AI Natural Language Prompt Synthesis!
+        customTimeline = buildCustomTimeline(q);
+        setChoreography('custom');
       }
       commandInput.value = '';
     }
+
+    window.applyQuickPrompt = function(txt) {
+      commandInput.value = txt;
+      handleCommand();
+    };
+
+    // URL Query Parameters on Page Load
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('ratio')) {
+        const r = urlParams.get('ratio');
+        setAspectRatio(r === '9:16' || r === 'vertical');
+      }
+      if (urlParams.has('choreography')) {
+        setChoreography(urlParams.get('choreography'));
+      }
+      if (urlParams.has('prompt')) {
+        commandInput.value = urlParams.get('prompt');
+        handleCommand();
+      }
+      if (urlParams.get('record') === 'true' || urlParams.get('record') === '1') {
+        setTimeout(() => {
+          if (!isRecording) startRecording();
+        }, 1000);
+      }
+    });
 
     // ==============================================================
     // 🎵 WEB AUDIO SYNTHESIZER ENGINE (SFX + DYNAMIC BATTLE BEAT)
@@ -800,20 +908,21 @@
       let cyanAura = false, redAura = false;
 
       // ==============================================================
-      // 🎬 MULTI-SCENE STORY DIRECTOR (15.0s Narrative Arc)
+      // 🎬 MULTI-SCENE STORY DIRECTOR & AI PROMPT CHOREOGRAPHY (15.0s)
       // ==============================================================
-      if (activeChoreography === 'story') {
+      if (activeChoreography === 'story' || activeChoreography === 'custom') {
+        const ct = customTimeline;
         if (f < 270) {
-          overlayTitle = 'SCENE I: CONFRONTATION';
-          overlaySubtitle = 'ARENA STANDOFF';
+          overlayTitle = ct ? ct.title : 'SCENE I: CONFRONTATION';
+          overlaySubtitle = ct ? 'ARENA STANDOFF & INTENT' : 'ARENA STANDOFF';
           
           if (f < 135) {
             subtitleSpeaker = 'CYAN';
-            subtitleText = 'You shouldn\'t have come back, Crimson.';
+            subtitleText = (ct && ct.cyanQuote) ? ct.cyanQuote : 'You shouldn\'t have come back, Crimson.';
             subtitleColor = '#00f0ff';
           } else {
             subtitleSpeaker = 'CRIMSON';
-            subtitleText = 'Only one of us leaves this arena.';
+            subtitleText = (ct && ct.redQuote) ? ct.redQuote : 'Only one of us leaves this arena.';
             subtitleColor = '#ff0055';
           }
 
@@ -822,18 +931,26 @@
           redY -= breathe;
           camScale *= (1.0 + (f / 270) * 0.08);
           
-          hasKatanaCyan = true; katanaCyanAngle = -0.5;
-          hasKatanaRed = true; katanaRedAngle = -2.6;
+          hasKatanaCyan = ct ? ct.hasKatana : true;
+          katanaCyanAngle = -0.5;
+          hasKatanaRed = ct ? (ct.hasKatana || !ct.hasBeam) : true;
+          katanaRedAngle = -2.6;
         } else if (f < 570) {
           const sf = f - 270;
-          overlayTitle = 'SCENE II: CLASH OF BLADES';
-          overlaySubtitle = 'WEAPONS DRAWN & HYPER BEAM';
-          hasKatanaCyan = true; hasKatanaRed = true;
+          overlayTitle = ct ? 'SCENE II: HIGH-SPEED INTERLOCK' : 'SCENE II: CLASH OF BLADES';
+          overlaySubtitle = (ct && ct.hasBeam) ? 'WEAPONS DRAWN & HYPER BEAM' : 'HIGH-SPEED WEAPONS CLASH';
+          hasKatanaCyan = ct ? ct.hasKatana : true;
+          hasKatanaRed = ct ? (ct.hasKatana || !ct.hasBeam) : true;
 
           if (sf < 150) {
             subtitleSpeaker = '';
-            subtitleText = 'HIGH-SPEED WEAPONS CLASH // 60 FPS';
+            subtitleText = (ct && ct.hasTeleport) ? 'FLASH-STEP FLANK // 60 FPS' : 'HIGH-SPEED WEAPONS CLASH // 60 FPS';
             subtitleColor = '#f59e0b';
+
+            if (ct && ct.hasTeleport && sf === 60) {
+              playSfx('teleport');
+              spawnSparks(cyanX, cyanY - 50, 20, '#00f0ff');
+            }
 
             const dashT = Math.min(1, sf / 30);
             cyanX = lerp(centerStageX - stageOffset, centerStageX - 70, easeOutBack(dashT));
@@ -871,7 +988,7 @@
             overlayTitle = '● SCENE III: BULLET-TIME ORBIT';
             overlaySubtitle = '0.15X SAKUGA DILATION';
             subtitleSpeaker = 'CYAN';
-            subtitleText = 'This ends now.';
+            subtitleText = (ct && ct.cyanFinishQuote) ? ct.cyanFinishQuote : 'This ends now.';
             subtitleColor = '#00f0ff';
 
             const t = sf / 160;
