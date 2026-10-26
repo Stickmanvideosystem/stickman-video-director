@@ -305,6 +305,7 @@
     <div style="display: flex; gap: 8px; margin-top: 6px; font-size: 11px; color: #94a3b8; align-items: center; flex-wrap: wrap;">
       <span style="font-weight: 700; color: #64748b; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px;">Quick Prompts:</span>
       <button class="chip-btn" onclick="applyQuickPrompt('Cyan deflects Crimson laser with katana in 9:16 Shorts')">⚡ Laser vs Katana (9:16 Shorts)</button>
+      <button class="chip-btn" onclick="applyQuickPrompt('Kinetic shield blocks hyper laser with impact frame knockout')">🛡️ Shield & Impact K.O.</button>
       <button class="chip-btn" onclick="applyQuickPrompt('Cyan teleports behind Crimson with slow-mo dragon kick')">🌀 Teleport Behind & Kick</button>
       <button class="chip-btn" onclick="applyQuickPrompt('Full 3-scene anime fight standoff, clash, and aerial slam')">🎬 Full 3-Scene Anime Battle</button>
       <button class="chip-btn" onclick="applyQuickPrompt('Twin plasma swords clash with intense spark bursts in 9:16')">⚔️ Twin Blades (9:16)</button>
@@ -435,6 +436,9 @@
       const hasBeam = q.includes('laser') || q.includes('beam') || q.includes('energy') || q.includes('blast') || q.includes('cannon');
       const hasTeleport = q.includes('teleport') || q.includes('flash') || q.includes('behind') || q.includes('portal') || q.includes('shunpo');
       const hasKick = q.includes('kick') || q.includes('roundhouse') || q.includes('slam') || q.includes('martial') || q.includes('punch');
+      const hasBow = q.includes('bow') || q.includes('arrow') || q.includes('archer');
+      const hasShield = q.includes('shield') || q.includes('barrier') || q.includes('block') || q.includes('deflect');
+      const hasDaggers = q.includes('dagger') || q.includes('daggers');
 
       let cyanQuote = 'You shouldn\'t have come back, Crimson.';
       let redQuote = 'This arena is your grave.';
@@ -447,7 +451,9 @@
         }
       }
 
-      const generatedTitle = (hasKatana && hasBeam) ? 'DUEL: PLASMA BLADE VS HYPER BEAM' :
+      const generatedTitle = hasShield ? 'DEFENSE MATRIX: SHIELD VS LASER' :
+                             hasBow ? 'LIGHT ARROW SAKUGA SNIPER' :
+                             (hasKatana && hasBeam) ? 'DUEL: PLASMA BLADE VS HYPER BEAM' :
                              hasTeleport ? 'SHADOW FLASH-STEP CONFRONTATION' :
                              hasBeam ? 'HYPER ENERGY SURGE APOCALYPSE' :
                              hasKatana ? 'WAY OF THE TWIN PLASMA KATANAS' : 'SAKUGA MARTIAL CONFLICT';
@@ -455,10 +461,13 @@
       return {
         prompt: promptText,
         isVertical: isVert,
-        hasKatana: hasKatana || (!hasBeam && !hasTeleport && !hasKick),
-        hasBeam: hasBeam || (!hasKatana && !hasTeleport && !hasKick),
+        hasKatana: hasKatana || (!hasBeam && !hasTeleport && !hasKick && !hasBow),
+        hasBeam: hasBeam || (!hasKatana && !hasTeleport && !hasKick && !hasBow),
         hasTeleport,
         hasKick: hasKick || (!hasBeam && !hasKatana),
+        hasBow,
+        hasShield,
+        hasDaggers,
         cyanQuote,
         redQuote,
         cyanFinishQuote,
@@ -694,10 +703,43 @@
         gain.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
         osc.connect(gain); gain.connect(masterGain);
         osc.start(t); osc.stop(t + 0.8);
+      } else if (type === 'bassRumble') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(85, t);
+        osc.frequency.exponentialRampToValueAtTime(18, t + 0.6);
+        gain.gain.setValueAtTime(0.85, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+        osc.connect(gain); gain.connect(masterGain);
+        osc.start(t); osc.stop(t + 0.6);
+      } else if (type === 'shieldDeflect') {
+        [2200, 3200, 4400].forEach((freq, idx) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, t + idx * 0.02);
+          gain.gain.setValueAtTime(0.35, t + idx * 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+          osc.connect(gain); gain.connect(masterGain);
+          osc.start(t + idx * 0.02); osc.stop(t + 0.3);
+        });
+      } else if (type === 'bowRelease') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(280, t);
+        osc.frequency.exponentialRampToValueAtTime(1100, t + 0.1);
+        gain.gain.setValueAtTime(0.5, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.16);
+        osc.connect(gain); gain.connect(masterGain);
+        osc.start(t); osc.stop(t + 0.16);
       }
     }
 
-    // Particle System
+    // ==============================================================
+    // 💥 ANIME FX SYSTEMS: SPARKS, DEBRIS, SHOCKWAVES & IMPACT FLASH
+    // ==============================================================
     const particles = [];
     function spawnSparks(x, y, count = 25, color = '#00f0ff') {
       for (let i = 0; i < count; i++) {
@@ -713,6 +755,47 @@
           size: 2 + Math.random() * 4
         });
       }
+    }
+
+    // Concrete Ground Debris System
+    const debris = [];
+    function spawnDebris(x, y, count = 18) {
+      for (let i = 0; i < count; i++) {
+        const angle = -Math.PI * 0.85 + Math.random() * Math.PI * 0.7;
+        const speed = 7 + Math.random() * 18;
+        debris.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          size: 4 + Math.random() * 10,
+          rotation: Math.random() * Math.PI * 2,
+          vRot: (Math.random() - 0.5) * 0.3,
+          life: 1.0,
+          decay: 0.015 + Math.random() * 0.02,
+          color: Math.random() > 0.4 ? '#475569' : '#94a3b8'
+        });
+      }
+    }
+
+    // Expanding Shockwave Rings System
+    const shockwaves = [];
+    function spawnShockwave(x, y, color = '#00f0ff', maxR = 280) {
+      shockwaves.push({
+        x, y,
+        radius: 12,
+        maxRadius: maxR,
+        alpha: 1.0,
+        color
+      });
+    }
+
+    // Anime Impact Frame (Kangeki Inversion Flash)
+    let impactFlashFrames = 0;
+    let impactOriginX = 0, impactOriginY = 0;
+    function triggerImpactFlash(x, y) {
+      impactFlashFrames = 3;
+      impactOriginX = x;
+      impactOriginY = y;
     }
 
     function easeOutBack(x) {
@@ -802,6 +885,135 @@
         const offset = (Date.now() * 0.005 + i * 2) % (Math.PI * 2);
         ctx.beginPath();
         ctx.arc(x, y - 60, radius + Math.sin(offset) * 8, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // 🏹 Energy Bow Drawing
+    function drawEnergyBow(ctx, x, y, angle, drawT = 0, color = '#00f0ff') {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.strokeStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 22;
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      
+      // Curved recurve bow arc
+      ctx.beginPath();
+      ctx.arc(0, 0, 70, -Math.PI * 0.42, Math.PI * 0.42);
+      ctx.stroke();
+      
+      // Core highlight
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, 70, -Math.PI * 0.36, Math.PI * 0.36);
+      ctx.stroke();
+
+      // Glowing bowstring
+      const pullX = -32 * drawT;
+      const topY = -70 * Math.sin(Math.PI * 0.42);
+      const topX = 70 * Math.cos(Math.PI * 0.42);
+      const botY = 70 * Math.sin(Math.PI * 0.42);
+      const botX = 70 * Math.cos(Math.PI * 0.42);
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(topX, topY);
+      ctx.lineTo(pullX, 0);
+      ctx.lineTo(botX, botY);
+      ctx.stroke();
+
+      // Energy Arrow
+      if (drawT > 0.15) {
+        ctx.strokeStyle = color;
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 25;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(pullX, 0);
+        ctx.lineTo(pullX + 90, 0);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(pullX + 96, 0);
+        ctx.lineTo(pullX + 80, -6);
+        ctx.lineTo(pullX + 80, 6);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // 🛡️ Kinetic Hexagonal Energy Shield
+    function drawEnergyShield(ctx, x, y, radius = 95, color = '#00f0ff') {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.strokeStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 28;
+      ctx.lineWidth = 4.5;
+      
+      // Outer barrier ellipse
+      ctx.beginPath();
+      ctx.ellipse(0, 0, radius * 0.55, radius, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Inner glowing fill
+      ctx.fillStyle = color === '#00f0ff' ? 'rgba(0, 240, 255, 0.16)' : 'rgba(255, 0, 85, 0.16)';
+      ctx.fill();
+
+      // Hexagonal honeycomb grid
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      for (let dy = -radius + 20; dy < radius; dy += 28) {
+        ctx.beginPath();
+        ctx.moveTo(-18, dy);
+        ctx.lineTo(18, dy);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // 🗡️ Dual Plasma Dagger
+    function drawDagger(ctx, x, y, angle, length = 68, color = '#00f0ff') {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.strokeStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 18;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(length, 0);
+      ctx.stroke();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(length - 4, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // ⚡ Anime Radial Speed Lines
+    function drawSpeedLines(ctx, cx, cy, count = 30) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+      ctx.lineWidth = 2.5;
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.08;
+        const startDist = 220 + Math.random() * 140;
+        const endDist = startDist + 280 + Math.random() * 320;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(angle) * startDist, cy + Math.sin(angle) * startDist);
+        ctx.lineTo(cx + Math.cos(angle) * endDist, cy + Math.sin(angle) * endDist);
         ctx.stroke();
       }
       ctx.restore();
@@ -916,9 +1128,13 @@
 
       let hasKatanaCyan = false, katanaCyanAngle = 0;
       let hasKatanaRed = false, katanaRedAngle = 0;
+      let hasBowCyan = false, bowCyanAngle = 0, bowDrawT = 0;
+      let hasShieldCyan = false, shieldCyanX = 0, shieldCyanY = 0;
+      let hasDaggersCyan = false;
       let drawSlash = false, slashParams = null;
       let drawBeam = false, beamParams = null;
       let cyanAura = false, redAura = false;
+      let showSpeedLines = false, speedLineOrigin = null;
 
       // ==============================================================
       // 🎬 MULTI-SCENE STORY DIRECTOR & AI PROMPT CHOREOGRAPHY (15.0s)
@@ -993,7 +1209,18 @@
             cyanY = groundY + 30;
             cyanAngle = 0.8;
             cyanAura = true;
-            screenShake = 6;
+            
+            // 🛡️ Kinetic Hexagonal Shield Deflects Beam!
+            hasShieldCyan = true;
+            shieldCyanX = cyanX + 50;
+            shieldCyanY = cyanY - 50;
+            
+            if (sf % 14 === 0) {
+              playSfx('shieldDeflect');
+              spawnSparks(shieldCyanX, shieldCyanY, 16, '#ffffff');
+              spawnSparks(shieldCyanX, shieldCyanY, 12, '#00f0ff');
+              screenShake = 10;
+            }
           }
         } else {
           const sf = f - 570;
@@ -1013,6 +1240,10 @@
             camX = Math.sin(t * Math.PI * 1.5) * 140;
             camScale *= 1.25;
 
+            // ⚡ Dramatic Anime Speed Lines
+            showSpeedLines = true;
+            speedLineOrigin = { x: centerStageX, y: groundY - 370 };
+
             if (sf === 1) playSfx('bulletTime');
           } else {
             overlayTitle = 'CRITICAL IMPACT';
@@ -1023,11 +1254,17 @@
 
             const t = (sf - 160) / 170;
             if (sf < 172) {
-              screenShake = 32;
+              screenShake = 36;
               if (sf === 162) {
+                // 💥 Kangeki Impact Frame + Debris + Dual Shockwaves + Sub-bass rumble!
+                triggerImpactFlash(centerStageX, groundY - 380);
                 playSfx('hit');
-                spawnSparks(centerStageX, groundY - 380, 60, '#ffffff');
-                spawnSparks(centerStageX, groundY - 380, 45, '#ff0055');
+                playSfx('bassRumble');
+                spawnSparks(centerStageX, groundY - 380, 80, '#ffffff');
+                spawnSparks(centerStageX, groundY - 380, 50, '#ff0055');
+                spawnDebris(centerStageX + 150, groundY + 40, 24);
+                spawnShockwave(centerStageX + 150, groundY + 50, '#00f0ff', 360);
+                spawnShockwave(centerStageX + 150, groundY + 50, '#ffffff', 220);
               }
             }
             cyanX = centerStageX - 100; cyanY = groundY;
@@ -1271,6 +1508,11 @@
         drawSlashArc(ctx, slashParams.x, slashParams.y, slashParams.r, slashParams.s, slashParams.e, slashParams.col);
       }
 
+      // Draw Speed Lines (Anime Action Rays)
+      if (showSpeedLines && speedLineOrigin) {
+        drawSpeedLines(ctx, speedLineOrigin.x, speedLineOrigin.y, 32);
+      }
+
       // Draw Stickmen
       drawCurvedStickman(ctx, { x: cyanX, y: cyanY, angle: cyanAngle, color: '#00f0ff', leftArm: c_la, rightArm: c_ra, leftLeg: c_ll, rightLeg: c_rl, aura: cyanAura });
       drawCurvedStickman(ctx, { x: redX, y: redY, angle: redAngle, color: '#ff0055', leftArm: r_la, rightArm: r_ra, leftLeg: r_ll, rightLeg: r_rl, aura: redAura });
@@ -1281,6 +1523,60 @@
       }
       if (hasKatanaRed) {
         drawKatana(ctx, redX + r_la.hx, redY - 80 + r_la.hy, katanaRedAngle, 110, '#ff0055');
+      }
+
+      // Draw Kinetic Shield
+      if (hasShieldCyan) {
+        drawEnergyShield(ctx, shieldCyanX, shieldCyanY, 95, '#00f0ff');
+      }
+
+      // Draw Energy Bow
+      if (hasBowCyan) {
+        drawEnergyBow(ctx, cyanX + c_ra.hx, cyanY - 80 + c_ra.hy, bowCyanAngle, bowDrawT, '#00f0ff');
+      }
+
+      // Render Expanding Shockwave Rings
+      for (let i = shockwaves.length - 1; i >= 0; i--) {
+        const sw = shockwaves[i];
+        sw.radius += 14;
+        sw.alpha = Math.max(0, 1.0 - (sw.radius / sw.maxRadius));
+        if (sw.alpha <= 0 || sw.radius >= sw.maxRadius) {
+          shockwaves.splice(i, 1);
+          continue;
+        }
+        ctx.save();
+        ctx.strokeStyle = sw.color;
+        ctx.shadowColor = sw.color;
+        ctx.shadowBlur = 25;
+        ctx.lineWidth = 5 * sw.alpha;
+        ctx.globalAlpha = sw.alpha;
+        ctx.beginPath();
+        ctx.ellipse(sw.x, sw.y, sw.radius, sw.radius * 0.35, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Render Concrete Debris Chunks
+      for (let i = debris.length - 1; i >= 0; i--) {
+        const d = debris[i];
+        d.x += d.vx;
+        d.y += d.vy;
+        d.vy += 0.65;
+        d.rotation += d.vRot;
+        d.life -= d.decay;
+        if (d.life <= 0 || d.y > canvas.height + 150) {
+          debris.splice(i, 1);
+          continue;
+        }
+        ctx.save();
+        ctx.translate(d.x, d.y);
+        ctx.rotate(d.rotation);
+        ctx.fillStyle = d.color;
+        ctx.shadowColor = '#000000';
+        ctx.shadowBlur = 6;
+        ctx.globalAlpha = d.life;
+        ctx.fillRect(-d.size / 2, -d.size / 2, d.size, d.size);
+        ctx.restore();
       }
 
       // Render Sparks & Particles
@@ -1303,6 +1599,31 @@
       ctx.globalAlpha = 1.0;
 
       ctx.restore();
+
+      // ==============================================================
+      // ⚡ ANIME IMPACT FRAME (KANGEKI INVERSION BURST)
+      // ==============================================================
+      if (impactFlashFrames > 0) {
+        impactFlashFrames--;
+        ctx.save();
+        // High-contrast inverted background
+        ctx.fillStyle = (impactFlashFrames % 2 === 0) ? '#ffffff' : '#05070e';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Manga impact burst rays radiating outward from impact center
+        ctx.fillStyle = (impactFlashFrames % 2 === 0) ? '#000000' : '#ffffff';
+        for (let i = 0; i < 24; i++) {
+          const angle = (i / 24) * Math.PI * 2;
+          const spread = 0.055;
+          ctx.beginPath();
+          ctx.moveTo(impactOriginX, impactOriginY);
+          ctx.lineTo(impactOriginX + Math.cos(angle - spread) * 1600, impactOriginY + Math.sin(angle - spread) * 1600);
+          ctx.lineTo(impactOriginX + Math.cos(angle + spread) * 1600, impactOriginY + Math.sin(angle + spread) * 1600);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+      }
 
       // Top Title Overlay
       if (overlayTitle) {

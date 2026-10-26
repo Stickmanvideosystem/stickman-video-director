@@ -50,8 +50,13 @@ function parsePromptToTimeline(text, aspect) {
   const hasBeam = q.includes('laser') || q.includes('beam') || q.includes('energy') || q.includes('blast') || q.includes('cannon');
   const hasTeleport = q.includes('teleport') || q.includes('flash') || q.includes('behind') || q.includes('portal');
   const hasKick = q.includes('kick') || q.includes('roundhouse') || q.includes('slam') || q.includes('martial') || q.includes('punch');
+  const hasBow = q.includes('bow') || q.includes('arrow') || q.includes('archer');
+  const hasShield = q.includes('shield') || q.includes('barrier') || q.includes('block') || q.includes('deflect');
+  const hasDaggers = q.includes('dagger') || q.includes('daggers');
 
-  const title = (hasKatana && hasBeam) ? 'BLADE VS HYPER CANNON' :
+  const title = hasShield ? 'DEFENSE MATRIX: SHIELD VS LASER' :
+                hasBow ? 'LIGHT ARROW SAKUGA SNIPER' :
+                (hasKatana && hasBeam) ? 'BLADE VS HYPER CANNON' :
                 hasTeleport ? 'FLASH-STEP CONFRONTATION' :
                 hasBeam ? 'ENERGY SURGE APOCALYPSE' :
                 hasKatana ? 'WAY OF THE PLASMA SWORD' : 'CLASH OF TITANS';
