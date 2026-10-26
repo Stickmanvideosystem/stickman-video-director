@@ -260,11 +260,11 @@
   <div class="studio-container" id="studioContainer">
     <div class="header">
       <div class="title-group">
-        <span class="badge">STEP 2 ACTIVE</span>
+        <span class="badge">AUDIO & VIDEO EMBEDDED</span>
         <h1>Claude-Style Stickman Sakuga Studio</h1>
       </div>
       <div style="font-size: 12px; color: #64748b; font-weight: 600;">
-        MULTI-SCENE DIRECTOR · 9:16 SHORTS · ANIMATED SUBTITLES
+        SYNTH BATTLE MUSIC · SFX IN DOWNLOADED VIDEO · 60 FPS
       </div>
     </div>
 
@@ -308,10 +308,12 @@
           <button id="ratioToggleBtn">📱 Mode: 16:9 Landscape</button>
           <!-- Subtitle Toggle -->
           <button id="subtitlesToggleBtn">💬 Subtitles: ON</button>
+          <!-- Battle Music Toggle -->
+          <button id="musicToggleBtn">🎵 Music: ON</button>
         </div>
         <div class="btn-group">
-          <button id="soundToggleBtn">🔊 Sound: ON</button>
-          <button id="recordBtn" class="record">⏺ Record & Download Video</button>
+          <button id="soundToggleBtn">🔊 SFX: ON</button>
+          <button id="recordBtn" class="record">⏺ Record & Download Video (with Audio!)</button>
         </div>
       </div>
     </div>
@@ -329,6 +331,7 @@
     const speedSelect = document.getElementById('speedSelect');
     const recordBtn = document.getElementById('recordBtn');
     const soundToggleBtn = document.getElementById('soundToggleBtn');
+    const musicToggleBtn = document.getElementById('musicToggleBtn');
     const ratioToggleBtn = document.getElementById('ratioToggleBtn');
     const subtitlesToggleBtn = document.getElementById('subtitlesToggleBtn');
     const commandInput = document.getElementById('commandInput');
@@ -336,15 +339,16 @@
     const presetBtns = document.querySelectorAll('.quick-preset-btn');
 
     // State Variables
-    let isVertical = false; // false = 16:9 (1920x1080), true = 9:16 (1080x1920)
+    let isVertical = false; // false = 16:9, true = 9:16
     let showSubtitles = true;
     let activeChoreography = 'story'; // 'story' (15s) | 'katana' | 'energy' | 'teleport' | 'martial' (10s)
-    let totalFrames = 900; // 15.0s for story mode, 600 (10s) for single clips
+    let totalFrames = 900;
     let currentFrame = 0;
     let isPlaying = true;
     let playbackSpeed = 1.0;
     let isRecording = false;
     let soundEnabled = true;
+    let musicEnabled = true;
 
     // Aspect Ratio Configuration
     function setAspectRatio(vertical) {
@@ -371,6 +375,16 @@
     subtitlesToggleBtn.addEventListener('click', () => {
       showSubtitles = !showSubtitles;
       subtitlesToggleBtn.textContent = showSubtitles ? '💬 Subtitles: ON' : '💬 Subtitles: OFF';
+    });
+
+    musicToggleBtn.addEventListener('click', () => {
+      musicEnabled = !musicEnabled;
+      musicToggleBtn.textContent = musicEnabled ? '🎵 Music: ON' : '🎵 Music: OFF';
+    });
+
+    soundToggleBtn.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      soundToggleBtn.textContent = soundEnabled ? '🔊 SFX: ON' : '🔊 SFX: OFF';
     });
 
     // Preset Switching
@@ -417,12 +431,83 @@
       commandInput.value = '';
     }
 
-    // Web Audio Synthesizer for SFX
+    // ==============================================================
+    // 🎵 WEB AUDIO SYNTHESIZER ENGINE (SFX + DYNAMIC BATTLE BEAT)
+    // ==============================================================
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     let audioCtx = null;
+    let audioDestNode = null; // for streaming audio directly into MediaRecorder!
+    let masterGain = null;
+
     function initAudio() {
-      if (!audioCtx) audioCtx = new AudioContext();
+      if (!audioCtx) {
+        audioCtx = new AudioContext();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.setValueAtTime(0.7, audioCtx.currentTime);
+        
+        // Output to laptop speakers
+        masterGain.connect(audioCtx.destination);
+        
+        // Output stream for Video Recording
+        audioDestNode = audioCtx.createMediaStreamDestination();
+        masterGain.connect(audioDestNode);
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
     }
+
+    // Procedural Battle Music Synthesizer Loop (130 BPM Cyberpunk Beat)
+    let lastBeatIndex = -1;
+    function processMusicBeat(f) {
+      if (!musicEnabled || !isPlaying) return;
+      initAudio();
+      const beatInterval = 14; // ~130 BPM at 60 FPS
+      const currentBeat = Math.floor(f / beatInterval);
+      if (currentBeat !== lastBeatIndex) {
+        lastBeatIndex = currentBeat;
+        const t = audioCtx.currentTime;
+        
+        // Kick Drum (Every 2 beats)
+        if (currentBeat % 2 === 0) {
+          const kickOsc = audioCtx.createOscillator();
+          const kickGain = audioCtx.createGain();
+          kickOsc.type = 'sine';
+          kickOsc.frequency.setValueAtTime(140, t);
+          kickOsc.frequency.exponentialRampToValueAtTime(38, t + 0.12);
+          kickGain.gain.setValueAtTime(0.35, t);
+          kickGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+          kickOsc.connect(kickGain); kickGain.connect(masterGain);
+          kickOsc.start(t); kickOsc.stop(t + 0.12);
+        }
+
+        // Cyber Synth Bass Note (8-note driving arpeggio)
+        const bassNotes = [55, 55, 65.4, 73.4, 55, 55, 82.4, 73.4];
+        const freq = bassNotes[currentBeat % bassNotes.length];
+        const bassOsc = audioCtx.createOscillator();
+        const bassGain = audioCtx.createGain();
+        bassOsc.type = 'sawtooth';
+        bassOsc.frequency.setValueAtTime(freq, t);
+        bassGain.gain.setValueAtTime(0.12, t);
+        bassGain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+        bassOsc.connect(bassGain); bassGain.connect(masterGain);
+        bassOsc.start(t); bassOsc.stop(t + 0.18);
+
+        // Hi-Hat on off-beats
+        if (currentBeat % 2 === 1) {
+          const hatOsc = audioCtx.createOscillator();
+          const hatGain = audioCtx.createGain();
+          hatOsc.type = 'triangle';
+          hatOsc.frequency.setValueAtTime(6000, t);
+          hatGain.gain.setValueAtTime(0.06, t);
+          hatGain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+          hatOsc.connect(hatGain); hatGain.connect(masterGain);
+          hatOsc.start(t); hatOsc.stop(t + 0.04);
+        }
+      }
+    }
+
+    // Procedural SFX Synthesizer
     function playSfx(type) {
       if (!soundEnabled) return;
       initAudio();
@@ -433,9 +518,9 @@
         osc.type = 'sine';
         osc.frequency.setValueAtTime(450, t);
         osc.frequency.exponentialRampToValueAtTime(100, t + 0.14);
-        gain.gain.setValueAtTime(0.25, t);
+        gain.gain.setValueAtTime(0.3, t);
         gain.gain.exponentialRampToValueAtTime(0.01, t + 0.14);
-        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.connect(gain); gain.connect(masterGain);
         osc.start(t); osc.stop(t + 0.14);
       } else if (type === 'swordClang') {
         [1600, 2400].forEach(freq => {
@@ -443,9 +528,9 @@
           const gain = audioCtx.createGain();
           osc.type = 'sine';
           osc.frequency.setValueAtTime(freq, t);
-          gain.gain.setValueAtTime(0.4, t);
+          gain.gain.setValueAtTime(0.45, t);
           gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-          osc.connect(gain); gain.connect(audioCtx.destination);
+          osc.connect(gain); gain.connect(masterGain);
           osc.start(t); osc.stop(t + 0.35);
         });
       } else if (type === 'laser') {
@@ -454,9 +539,9 @@
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(800, t);
         osc.frequency.exponentialRampToValueAtTime(80, t + 0.4);
-        gain.gain.setValueAtTime(0.5, t);
+        gain.gain.setValueAtTime(0.55, t);
         gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
-        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.connect(gain); gain.connect(masterGain);
         osc.start(t); osc.stop(t + 0.4);
       } else if (type === 'teleport') {
         const osc = audioCtx.createOscillator();
@@ -466,18 +551,18 @@
         osc.frequency.linearRampToValueAtTime(600, t + 0.15);
         gain.gain.setValueAtTime(0.4, t);
         gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
-        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.connect(gain); gain.connect(masterGain);
         osc.start(t); osc.stop(t + 0.15);
       } else if (type === 'hit') {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(160, t);
-        osc.frequency.exponentialRampToValueAtTime(35, t + 0.28);
-        gain.gain.setValueAtTime(0.8, t);
-        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.28);
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.start(t); osc.stop(t + 0.28);
+        osc.frequency.setValueAtTime(170, t);
+        osc.frequency.exponentialRampToValueAtTime(32, t + 0.3);
+        gain.gain.setValueAtTime(0.9, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+        osc.connect(gain); gain.connect(masterGain);
+        osc.start(t); osc.stop(t + 0.3);
       } else if (type === 'bulletTime') {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
@@ -486,7 +571,7 @@
         osc.frequency.linearRampToValueAtTime(160, t + 0.8);
         gain.gain.setValueAtTime(0.4, t);
         gain.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
-        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.connect(gain); gain.connect(masterGain);
         osc.start(t); osc.stop(t + 0.8);
       }
     }
@@ -647,7 +732,6 @@
       ctx.save();
       const subY = canvas.height - (isVertical ? 260 : 130);
       
-      // Glassmorphic background badge
       ctx.font = '600 28px -apple-system, sans-serif';
       const fullText = speaker ? `[${speaker}]: ${text}` : text;
       const textWidth = ctx.measureText(fullText).width;
@@ -664,7 +748,6 @@
       ctx.fill();
       ctx.stroke();
 
-      // Speaker Prefix
       ctx.textAlign = 'center';
       if (speaker) {
         ctx.fillStyle = color;
@@ -687,12 +770,12 @@
     // Main Render Pipeline
     function render(f) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      processMusicBeat(f);
 
       let camX = 0, camY = 0, camScale = isVertical ? 0.8 : 1.0, screenShake = 0;
       let overlayTitle = '', overlaySubtitle = '';
       let subtitleSpeaker = '', subtitleText = '', subtitleColor = '#00f0ff';
       
-      // Ground plane adapts to vertical / horizontal
       const groundY = isVertical ? 1400 : 820;
       const centerStageX = canvas.width / 2;
       const stageOffset = isVertical ? 320 : 460;
@@ -720,7 +803,6 @@
       // 🎬 MULTI-SCENE STORY DIRECTOR (15.0s Narrative Arc)
       // ==============================================================
       if (activeChoreography === 'story') {
-        // --- SCENE 1: CONFRONTATION & TENSION (0s - 4.5s / Frames 0 - 270) ---
         if (f < 270) {
           overlayTitle = 'SCENE I: CONFRONTATION';
           overlaySubtitle = 'ARENA STANDOFF';
@@ -740,13 +822,10 @@
           redY -= breathe;
           camScale *= (1.0 + (f / 270) * 0.08);
           
-          // Draw weapons at ready
           hasKatanaCyan = true; katanaCyanAngle = -0.5;
           hasKatanaRed = true; katanaRedAngle = -2.6;
-        }
-        // --- SCENE 2: WEAPON CLASH & ENERGY ESCALATION (4.5s - 9.5s / Frames 270 - 570) ---
-        else if (f < 570) {
-          const sf = f - 270; // 0 to 300
+        } else if (f < 570) {
+          const sf = f - 270;
           overlayTitle = 'SCENE II: CLASH OF BLADES';
           overlaySubtitle = 'WEAPONS DRAWN & HYPER BEAM';
           hasKatanaCyan = true; hasKatanaRed = true;
@@ -756,7 +835,6 @@
             subtitleText = 'HIGH-SPEED WEAPONS CLASH // 60 FPS';
             subtitleColor = '#f59e0b';
 
-            // High speed rush
             const dashT = Math.min(1, sf / 30);
             cyanX = lerp(centerStageX - stageOffset, centerStageX - 70, easeOutBack(dashT));
             redX = lerp(centerStageX + stageOffset, centerStageX + 70, easeOutBack(dashT));
@@ -771,7 +849,6 @@
               screenShake = 8;
             }
           } else {
-            // Energy escalation
             subtitleSpeaker = 'CRIMSON';
             subtitleText = 'WITNESS ABSOLUTE DESTRUCTION!';
             subtitleColor = '#ff0055';
@@ -781,7 +858,6 @@
             beamParams = { sx: redX - 40, sy: groundY - 70, ex: 100, ey: groundY - 70, w: 50, col: '#ff0055' };
             if (sf === 151) playSfx('laser');
 
-            // Cyan sliding dodge
             const t = (sf - 150) / 150;
             cyanX = lerp(centerStageX - 70, centerStageX - 250, t);
             cyanY = groundY + 30;
@@ -789,12 +865,9 @@
             cyanAura = true;
             screenShake = 6;
           }
-        }
-        // --- SCENE 3: BULLET-TIME CLIMAX & KNOCKOUT (9.5s - 15.0s / Frames 570 - 900) ---
-        else {
-          const sf = f - 570; // 0 to 330
+        } else {
+          const sf = f - 570;
           if (sf < 160) {
-            // 0.15x Bullet Time Aerial Orbit
             overlayTitle = '● SCENE III: BULLET-TIME ORBIT';
             overlaySubtitle = '0.15X SAKUGA DILATION';
             subtitleSpeaker = 'CYAN';
@@ -812,7 +885,6 @@
 
             if (sf === 1) playSfx('bulletTime');
           } else {
-            // Critical Slam & Hero Landing
             overlayTitle = 'CRITICAL IMPACT';
             overlaySubtitle = 'KNOCKOUT VICTORY';
             subtitleSpeaker = '';
@@ -1146,6 +1218,7 @@
 
     // Controls
     playBtn.addEventListener('click', () => {
+      initAudio();
       isPlaying = !isPlaying;
       playBtn.textContent = isPlaying ? '⏸ Pause' : '▶ Play';
     });
@@ -1160,12 +1233,10 @@
     speedSelect.addEventListener('change', (e) => {
       playbackSpeed = parseFloat(e.target.value);
     });
-    soundToggleBtn.addEventListener('click', () => {
-      soundEnabled = !soundEnabled;
-      soundToggleBtn.textContent = soundEnabled ? '🔊 Sound: ON' : '🔇 Sound: OFF';
-    });
 
-    // 1-Click Video Recording (MediaRecorder API)
+    // ==============================================================
+    // ⏺ 1-CLICK VIDEO RECORDING (INCLUDES BOTH VIDEO & AUDIO TRACKS!)
+    // ==============================================================
     let mediaRecorder = null;
     let recordedChunks = [];
     recordBtn.addEventListener('click', () => {
@@ -1186,12 +1257,29 @@
       recordBtn.textContent = '⏹ Stop & Save Video';
       recordBtn.classList.add('recording');
 
-      const stream = canvas.captureStream(60);
-      const options = { mimeType: 'video/webm;codecs=vp9' };
+      // Capture 60 FPS Video Stream from Canvas
+      const canvasStream = canvas.captureStream(60);
+      
+      // Combine with Audio Stream (both SFX + Music)
+      let combinedStream;
+      if (audioDestNode && audioDestNode.stream.getAudioTracks().length > 0) {
+        combinedStream = new MediaStream([
+          ...canvasStream.getVideoTracks(),
+          ...audioDestNode.stream.getAudioTracks()
+        ]);
+      } else {
+        combinedStream = canvasStream;
+      }
+
+      const options = { mimeType: 'video/webm;codecs=vp9,opus' };
       try {
-        mediaRecorder = new MediaRecorder(stream, options);
+        mediaRecorder = new MediaRecorder(combinedStream, options);
       } catch (e) {
-        mediaRecorder = new MediaRecorder(stream);
+        try {
+          mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
+        } catch (e2) {
+          mediaRecorder = new MediaRecorder(combinedStream);
+        }
       }
 
       mediaRecorder.ondataavailable = (e) => {
@@ -1217,7 +1305,7 @@
     function stopRecording() {
       if (!isRecording) return;
       isRecording = false;
-      recordBtn.textContent = '⏺ Record & Download Video';
+      recordBtn.textContent = '⏺ Record & Download Video (with Audio!)';
       recordBtn.classList.remove('recording');
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
