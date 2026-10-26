@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "title": "BLADE VS HYPER CANNON",
-  "prompt": "Laser vs Katana duel",
+  "prompt": "Cyan deflects laser with katana and finishes with slow-mo kick",
   "aspectRatio": "9:16",
   "totalFrames": 900,
   "scenes": [
@@ -82,7 +82,7 @@
           "color": "#00f0ff"
         }
       ],
-      "cyanAction": "finishSlam",
+      "cyanAction": "aerialOrbitKick",
       "redAction": "knockoutFlight",
       "sfx": [
         "bulletTime",

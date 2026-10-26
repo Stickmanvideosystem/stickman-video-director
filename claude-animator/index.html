@@ -335,10 +335,14 @@
           <button id="subtitlesToggleBtn">💬 Subtitles: ON</button>
           <!-- Battle Music Toggle -->
           <button id="musicToggleBtn">🎵 Music: ON</button>
+          <!-- Video Export Format Toggle -->
+          <button id="formatToggleBtn">🎞 Export: MP4</button>
+          <!-- Free Cloud GPU Link -->
+          <button id="cloudGpuBtn" onclick="window.open('https://colab.research.google.com/github/Stickmanvideosystem/stickman-video-director/blob/main/colab-blender-engine/Stickman_Fight_3D_Colab.ipynb', '_blank')">☁️ Cloud GPU</button>
         </div>
         <div class="btn-group">
           <button id="soundToggleBtn">🔊 SFX: ON</button>
-          <button id="recordBtn" class="record">⏺ Record & Download Video (with Audio!)</button>
+          <button id="recordBtn" class="record">⏺ Record Video (with Audio!)</button>
         </div>
       </div>
     </div>
@@ -357,6 +361,7 @@
     const recordBtn = document.getElementById('recordBtn');
     const soundToggleBtn = document.getElementById('soundToggleBtn');
     const musicToggleBtn = document.getElementById('musicToggleBtn');
+    const formatToggleBtn = document.getElementById('formatToggleBtn');
     const ratioToggleBtn = document.getElementById('ratioToggleBtn');
     const subtitlesToggleBtn = document.getElementById('subtitlesToggleBtn');
     const commandInput = document.getElementById('commandInput');
@@ -366,6 +371,9 @@
     // State Variables
     let isVertical = false; // false = 16:9, true = 9:16
     let showSubtitles = true;
+    let preferredFormat = 'mp4'; // 'mp4' | 'webm'
+    let actualMimeType = 'video/mp4';
+    let actualExt = 'mp4';
     let activeChoreography = 'story'; // 'story' (15s) | 'katana' | 'energy' | 'teleport' | 'martial' (10s)
     let totalFrames = 900;
     let currentFrame = 0;
@@ -405,6 +413,11 @@
     musicToggleBtn.addEventListener('click', () => {
       musicEnabled = !musicEnabled;
       musicToggleBtn.textContent = musicEnabled ? '🎵 Music: ON' : '🎵 Music: OFF';
+    });
+
+    formatToggleBtn.addEventListener('click', () => {
+      preferredFormat = (preferredFormat === 'mp4') ? 'webm' : 'mp4';
+      formatToggleBtn.textContent = `🎞 Export: ${preferredFormat.toUpperCase()}`;
     });
 
     soundToggleBtn.addEventListener('click', () => {
@@ -1388,14 +1401,42 @@
         combinedStream = canvasStream;
       }
 
-      const options = { mimeType: 'video/webm;codecs=vp9,opus' };
+      // Video / Audio Format Configuration (MP4 preferred or WebM)
+      actualExt = 'webm';
+      actualMimeType = 'video/webm';
+      let options = {};
+
+      if (preferredFormat === 'mp4') {
+        if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1,mp4a.40.2')) {
+          options = { mimeType: 'video/mp4;codecs=avc1,mp4a.40.2' };
+          actualMimeType = 'video/mp4';
+          actualExt = 'mp4';
+        } else if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')) {
+          options = { mimeType: 'video/mp4;codecs=avc1' };
+          actualMimeType = 'video/mp4';
+          actualExt = 'mp4';
+        } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+          options = { mimeType: 'video/mp4' };
+          actualMimeType = 'video/mp4';
+          actualExt = 'mp4';
+        } else {
+          options = { mimeType: 'video/webm;codecs=vp9,opus' };
+        }
+      } else {
+        options = { mimeType: 'video/webm;codecs=vp9,opus' };
+      }
+
       try {
         mediaRecorder = new MediaRecorder(combinedStream, options);
       } catch (e) {
         try {
           mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
+          actualExt = 'webm';
+          actualMimeType = 'video/webm';
         } catch (e2) {
           mediaRecorder = new MediaRecorder(combinedStream);
+          actualExt = 'webm';
+          actualMimeType = 'video/webm';
         }
       }
 
@@ -1404,12 +1445,12 @@
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const blob = new Blob(recordedChunks, { type: actualMimeType });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         const modeTag = isVertical ? '9x16_shorts' : '16x9';
-        a.download = `stickman_${activeChoreography}_${modeTag}.webm`;
+        a.download = `stickman_${activeChoreography}_${modeTag}.${actualExt}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -1422,7 +1463,7 @@
     function stopRecording() {
       if (!isRecording) return;
       isRecording = false;
-      recordBtn.textContent = '⏺ Record & Download Video (with Audio!)';
+      recordBtn.textContent = '⏺ Record Video (with Audio!)';
       recordBtn.classList.remove('recording');
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
