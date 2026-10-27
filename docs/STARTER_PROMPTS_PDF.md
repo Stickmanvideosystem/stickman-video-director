@@ -91,3 +91,4 @@ Create a pure javascript animation. 30-60s, vertical 9:16, paper cut-out shadow 
 6. `engines/opus-video-prompts` - 18 full prompts and 54 public case studies
 7. `engines/awesome-claude-5-5-videos` - 424 curated video posts and research library
 8. `engines/awesome-opus5-5-videos` - 703 viral video prompts with side-by-side remakes
+

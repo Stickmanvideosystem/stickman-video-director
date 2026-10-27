@@ -33,3 +33,4 @@ chromium --version || true
 
 echo ""
 echo "🎬 Ready! Run 'node scripts/direct_scene.js' to direct scenes."
+
